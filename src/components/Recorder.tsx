@@ -37,6 +37,12 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
   const [error, setError] = useState<string | null>(null);
   const [usingBrowserASR, setUsingBrowserASR] = useState<boolean>(false);
   const [previewTranscript, setPreviewTranscript] = useState<string>("");
+  const [audioUrl, setAudioUrl] = useState<string | undefined>(undefined);
+
+  // For browser ASR parallel capture
+  const parallelRecorderRef = useRef<MediaRecorder | null>(null);
+  const parallelChunksRef = useRef<Blob[]>([]);
+  const recognitionStopTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     let timer: number | null = null;
@@ -61,12 +67,35 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
     setStoppedAt(null);
     transcriptRef.current = "";
     setPreviewTranscript("");
+    setAudioUrl(undefined);
 
     const win = typeof window !== "undefined" ? (window as unknown as { SpeechRecognition?: new () => SpeechRecognitionLike; webkitSpeechRecognition?: new () => SpeechRecognitionLike }) : undefined;
     const SpeechRecognitionCtor = win?.SpeechRecognition || win?.webkitSpeechRecognition || null;
 
     if (SpeechRecognitionCtor) {
       try {
+        // Start parallel audio capture for replay
+        try {
+          const parallelStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const mimeType = typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : "audio/webm";
+          const pr = new MediaRecorder(parallelStream, { mimeType });
+          parallelChunksRef.current = [];
+          pr.ondataavailable = (e) => {
+            if (e.data && e.data.size > 0) parallelChunksRef.current.push(e.data);
+          };
+          pr.onstop = () => {
+            const blob = new Blob(parallelChunksRef.current, { type: mimeType });
+            if (blob.size <= MAX_BYTES) {
+              const url = URL.createObjectURL(blob);
+              setAudioUrl(url);
+            }
+          };
+          parallelRecorderRef.current = pr;
+          pr.start();
+        } catch {
+          // If parallel capture fails, we still proceed with recognition-only
+        }
+
         const recognition = new SpeechRecognitionCtor();
         recognition.lang = "en-US";
         recognition.interimResults = true;
@@ -89,14 +118,23 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
           setError(e?.error || "Speech recognition error");
         };
         recognition.onend = () => {
-          if (usingBrowserASR) {
-            const text = transcriptRef.current.trim();
-            setPreviewTranscript(text);
-            if (state !== "idle") {
-              onTranscribed({ transcript: text });
-            }
-            setState("idle");
+          // Clear safety timeout if set
+          if (recognitionStopTimeoutRef.current !== null) {
+            window.clearTimeout(recognitionStopTimeoutRef.current);
+            recognitionStopTimeoutRef.current = null;
           }
+          // Stop parallel recorder
+          if (parallelRecorderRef.current && parallelRecorderRef.current.state !== "inactive") {
+            parallelRecorderRef.current.stop();
+            parallelRecorderRef.current.stream.getTracks().forEach((t) => t.stop());
+          }
+          // Finalize transcript and notify
+          const text = transcriptRef.current.trim();
+          setPreviewTranscript(text);
+          if (state !== "idle") {
+            onTranscribed({ transcript: text, audioUrl });
+          }
+          setState("idle");
         };
         recognitionRef.current = recognition;
         setUsingBrowserASR(true);
@@ -129,7 +167,8 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
           return;
         }
         setState("processing");
-        const audioUrl = URL.createObjectURL(blob);
+        const url = URL.createObjectURL(blob);
+        setAudioUrl(url);
         try {
           const fd = new FormData();
           fd.append("file", blob, "answer.webm");
@@ -141,7 +180,7 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
           const j: { transcript?: string } = await res.json();
           const text = (j.transcript || "").trim();
           setPreviewTranscript(text);
-          onTranscribed({ transcript: text, audioUrl });
+          onTranscribed({ transcript: text, audioUrl: url });
         } catch (e: unknown) {
           const message = e instanceof Error ? e.message : "Transcription failed";
           setError(message);
@@ -156,7 +195,7 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
       const message = e instanceof Error ? e.message : "Microphone access failed";
       setError(message);
     }
-  }, [onTranscribed, usingBrowserASR, state]);
+  }, [onTranscribed, usingBrowserASR, state, audioUrl]);
 
   const stopRecording = useCallback(() => {
     setStoppedAt(elapsed);
@@ -164,6 +203,20 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
       try {
         setState("processing");
         recognitionRef.current.stop();
+        // Safety: if onend doesn't fire, finalize after 1.5s
+        recognitionStopTimeoutRef.current = window.setTimeout(() => {
+          if (state !== "idle") {
+            // Stop parallel recorder if still running
+            if (parallelRecorderRef.current && parallelRecorderRef.current.state !== "inactive") {
+              parallelRecorderRef.current.stop();
+              parallelRecorderRef.current.stream.getTracks().forEach((t) => t.stop());
+            }
+            const text = transcriptRef.current.trim();
+            setPreviewTranscript(text);
+            onTranscribed({ transcript: text, audioUrl });
+            setState("idle");
+          }
+        }, 1500);
       } catch {
         // ignore
       }
@@ -174,7 +227,7 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
       mr.stop();
       mr.stream.getTracks().forEach((t) => t.stop());
     }
-  }, [usingBrowserASR, elapsed]);
+  }, [usingBrowserASR, elapsed, state, audioUrl, onTranscribed]);
 
   const canRecord = useMemo(() => state === "idle", [state]);
 
@@ -215,6 +268,12 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
         <div>
           <div className="text-sm font-medium">Transcript</div>
           <div className="text-sm opacity-80 whitespace-pre-wrap">{previewTranscript}</div>
+        </div>
+      )}
+      {audioUrl && (
+        <div>
+          <div className="text-sm font-medium">Replay</div>
+          <audio className="w-full" controls src={audioUrl} />
         </div>
       )}
       {!usingBrowserASR && (
