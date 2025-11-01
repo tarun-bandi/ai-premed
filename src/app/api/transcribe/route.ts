@@ -1,4 +1,4 @@
-import { ASR_MODEL, openai } from "@/lib/ai";
+import { ASR_MODEL, getOpenAI } from "@/lib/ai";
 import { getClientIp, rateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
@@ -35,10 +35,7 @@ export async function POST(req: Request) {
 			return new Response(JSON.stringify({ error: `Unsupported audio type: ${mime}` }), { status: 400 });
 		}
 
-		if (!process.env.OPENAI_API_KEY) {
-			return new Response(JSON.stringify({ error: "Server misconfigured: OPENAI_API_KEY missing" }), { status: 500 });
-		}
-
+		const openai = getOpenAI();
 		const transcription = await openai.audio.transcriptions.create({
 			file,
 			model: ASR_MODEL,

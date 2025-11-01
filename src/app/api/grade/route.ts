@@ -1,4 +1,4 @@
-import { GEMINI_MODEL, gemini } from "@/lib/ai";
+import { GEMINI_MODEL, getGemini } from "@/lib/ai";
 import { getClientIp, rateLimit } from "@/lib/rateLimit";
 import type { GradeResult } from "@/types/grade";
 
@@ -53,10 +53,6 @@ export async function POST(req: Request) {
 			return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429 });
 		}
 
-		if (!process.env.GOOGLE_API_KEY) {
-			return new Response(JSON.stringify({ error: "Server misconfigured: GOOGLE_API_KEY missing" }), { status: 500 });
-		}
-
 		const body = await req.json().catch(() => null) as { question?: string; transcript?: string } | null;
 		const question = body?.question;
 		const transcript = body?.transcript;
@@ -65,6 +61,7 @@ export async function POST(req: Request) {
 			return new Response(JSON.stringify({ error: "Missing question or transcript" }), { status: 400 });
 		}
 
+		const gemini = getGemini();
 		const model = gemini.getGenerativeModel({ model: GEMINI_MODEL });
 
 		const prompt = `${SYSTEM_PROMPT}\n\nQuestion: "${question}"\n\nTranscript:\n"${transcript}"`;
