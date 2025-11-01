@@ -7,10 +7,29 @@ const MAX_BYTES = 5 * 1024 * 1024;
 
 export type RecorderState = "idle" | "recording" | "processing";
 
+type SpeechRecognitionEventLike = {
+	resultIndex: number;
+	results: Array<{
+		isFinal: boolean;
+		0: { transcript: string };
+	}>;
+};
+
+type SpeechRecognitionLike = {
+	lang: string;
+	interimResults: boolean;
+	continuous: boolean;
+	onresult: (event: SpeechRecognitionEventLike) => void;
+	onerror: (event: { error?: string }) => void;
+	onend: () => void;
+	start: () => void;
+	stop: () => void;
+};
+
 export default function Recorder({ onTranscribed }: { onTranscribed: (args: { transcript: string; audioUrl?: string }) => void }) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const transcriptRef = useRef<string>("");
   const [state, setState] = useState<RecorderState>("idle");
   const [elapsed, setElapsed] = useState(0);
@@ -18,11 +37,13 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
   const [usingBrowserASR, setUsingBrowserASR] = useState<boolean>(false);
 
   useEffect(() => {
-    let timer: any;
+    let timer: number | null = null;
     if (state === "recording") {
-      timer = setInterval(() => setElapsed((s) => s + 1), 1000);
+      timer = window.setInterval(() => setElapsed((s) => s + 1), 1000);
     }
-    return () => clearInterval(timer);
+    return () => {
+      if (timer !== null) window.clearInterval(timer);
+    };
   }, [state]);
 
   useEffect(() => {
@@ -37,15 +58,16 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
     setElapsed(0);
     transcriptRef.current = "";
 
-    const SpeechRecognition: any = (typeof window !== "undefined" && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)) || null;
+    const win = typeof window !== "undefined" ? (window as unknown as { SpeechRecognition?: new () => SpeechRecognitionLike; webkitSpeechRecognition?: new () => SpeechRecognitionLike }) : undefined;
+    const SpeechRecognitionCtor = win?.SpeechRecognition || win?.webkitSpeechRecognition || null;
 
-    if (SpeechRecognition) {
+    if (SpeechRecognitionCtor) {
       try {
-        const recognition = new SpeechRecognition();
+        const recognition = new SpeechRecognitionCtor();
         recognition.lang = "en-US";
         recognition.interimResults = true;
         recognition.continuous = true;
-        recognition.onresult = (event: any) => {
+        recognition.onresult = (event: SpeechRecognitionEventLike) => {
           let finalTranscript = "";
           for (let i = event.resultIndex; i < event.results.length; i++) {
             const res = event.results[i];
@@ -57,12 +79,11 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
             transcriptRef.current = (transcriptRef.current + " " + finalTranscript).trim();
           }
         };
-        recognition.onerror = (e: any) => {
+        recognition.onerror = (e: { error?: string }) => {
           setError(e?.error || "Speech recognition error");
         };
         recognition.onend = () => {
           if (usingBrowserASR && state !== "idle") {
-            // Ensure we finalize once when stopped
             const text = transcriptRef.current.trim();
             setState("processing");
             onTranscribed({ transcript: text });
@@ -74,8 +95,9 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
         recognition.start();
         setState("recording");
         return;
-      } catch (e: any) {
-        setError(e?.message || "Failed to start speech recognition");
+      } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : "Failed to start speech recognition";
+        setError(message);
         setUsingBrowserASR(false);
       }
     }
@@ -105,13 +127,14 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
           fd.append("file", blob, "answer.webm");
           const res = await fetch("/api/transcribe", { method: "POST", body: fd });
           if (!res.ok) {
-            const j = await res.json().catch(() => ({}));
+            const j: { error?: string } = await res.json().catch(() => ({} as { error?: string }));
             throw new Error(j.error || `Transcription error (${res.status})`);
           }
-          const j = await res.json();
+          const j: { transcript?: string } = await res.json();
           onTranscribed({ transcript: j.transcript || "", audioUrl });
-        } catch (e: any) {
-          setError(e?.message || "Transcription failed");
+        } catch (e: unknown) {
+          const message = e instanceof Error ? e.message : "Transcription failed";
+          setError(message);
         } finally {
           setState("idle");
         }
@@ -119,8 +142,9 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
       mediaRecorderRef.current = mr;
       mr.start();
       setState("recording");
-    } catch (e: any) {
-      setError(e?.message || "Microphone access failed");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Microphone access failed";
+      setError(message);
     }
   }, [onTranscribed, usingBrowserASR, state]);
 

@@ -3,11 +3,12 @@
 import { useCallback, useState } from "react";
 import Recorder from "@/components/Recorder";
 import ScorePanel from "@/components/ScorePanel";
+import type { GradeResult } from "@/types/grade";
 
 export default function PracticeClient({ question }: { question: string }) {
   const [transcript, setTranscript] = useState<string | null>(null);
   const [grading, setGrading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<GradeResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleTranscribed = useCallback(async ({ transcript }: { transcript: string }) => {
@@ -21,13 +22,14 @@ export default function PracticeClient({ question }: { question: string }) {
         body: JSON.stringify({ question, transcript }),
       });
       if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
+        const j: { error?: string } = await res.json().catch(() => ({} as { error?: string }));
         throw new Error(j.error || `Grading error (${res.status})`);
       }
-      const j = await res.json();
+      const j: GradeResult = await res.json();
       setResult(j);
-    } catch (e: any) {
-      setError(e?.message || "Grading failed");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Grading failed";
+      setError(message);
     } finally {
       setGrading(false);
     }
