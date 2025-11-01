@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import Recorder from "@/components/Recorder";
 import ScorePanel from "@/components/ScorePanel";
 import type { GradeResult } from "@/types/grade";
+import Link from "next/link";
 
 export default function PracticeClient({ question }: { question: string }) {
   const [transcript, setTranscript] = useState<string | null>(null);
@@ -62,7 +63,7 @@ export default function PracticeClient({ question }: { question: string }) {
           />
           <div className="flex gap-3">
             <button className="px-4 py-2 rounded-md border border-black/10 dark:border-white/15" onClick={reset}>Try again</button>
-            <a className="px-4 py-2 rounded-md bg-foreground text-background" href="/">Pick another question</a>
+            <Link className="px-4 py-2 rounded-md bg-foreground text-background" href="/">Pick another question</Link>
           </div>
         </div>
       )}
