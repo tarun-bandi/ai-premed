@@ -10,9 +10,12 @@ export type RecorderState = "idle" | "recording" | "processing";
 export default function Recorder({ onTranscribed }: { onTranscribed: (args: { transcript: string; audioUrl?: string }) => void }) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const recognitionRef = useRef<any>(null);
+  const transcriptRef = useRef<string>("");
   const [state, setState] = useState<RecorderState>("idle");
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [usingBrowserASR, setUsingBrowserASR] = useState<boolean>(false);
 
   useEffect(() => {
     let timer: any;
@@ -32,6 +35,52 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
   const startRecording = useCallback(async () => {
     setError(null);
     setElapsed(0);
+    transcriptRef.current = "";
+
+    const SpeechRecognition: any = (typeof window !== "undefined" && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)) || null;
+
+    if (SpeechRecognition) {
+      try {
+        const recognition = new SpeechRecognition();
+        recognition.lang = "en-US";
+        recognition.interimResults = true;
+        recognition.continuous = true;
+        recognition.onresult = (event: any) => {
+          let finalTranscript = "";
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const res = event.results[i];
+            if (res.isFinal) {
+              finalTranscript += res[0].transcript + " ";
+            }
+          }
+          if (finalTranscript) {
+            transcriptRef.current = (transcriptRef.current + " " + finalTranscript).trim();
+          }
+        };
+        recognition.onerror = (e: any) => {
+          setError(e?.error || "Speech recognition error");
+        };
+        recognition.onend = () => {
+          if (usingBrowserASR && state !== "idle") {
+            // Ensure we finalize once when stopped
+            const text = transcriptRef.current.trim();
+            setState("processing");
+            onTranscribed({ transcript: text });
+            setState("idle");
+          }
+        };
+        recognitionRef.current = recognition;
+        setUsingBrowserASR(true);
+        recognition.start();
+        setState("recording");
+        return;
+      } catch (e: any) {
+        setError(e?.message || "Failed to start speech recognition");
+        setUsingBrowserASR(false);
+      }
+    }
+
+    // Fallback to MediaRecorder + server ASR if browser API not available
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mimeType = typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
@@ -73,15 +122,23 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
     } catch (e: any) {
       setError(e?.message || "Microphone access failed");
     }
-  }, [onTranscribed]);
+  }, [onTranscribed, usingBrowserASR, state]);
 
   const stopRecording = useCallback(() => {
+    if (usingBrowserASR && recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        // ignore
+      }
+      return;
+    }
     const mr = mediaRecorderRef.current;
     if (mr && mr.state !== "inactive") {
       mr.stop();
       mr.stream.getTracks().forEach((t) => t.stop());
     }
-  }, []);
+  }, [usingBrowserASR]);
 
   const canRecord = useMemo(() => state === "idle", [state]);
 
@@ -115,6 +172,9 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
         <div className="text-xs opacity-70">Speak up to {MAX_SECONDS}s. Auto-stops at limit.</div>
       )}
       {error && <div className="text-sm text-red-600 dark:text-red-400">{error}</div>}
+      {!usingBrowserASR && (
+        <div className="text-xs opacity-70">Tip: For free transcription, use Chrome where speech recognition is supported.</div>
+      )}
     </div>
   );
 }
