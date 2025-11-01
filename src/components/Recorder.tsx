@@ -118,21 +118,22 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
           setError(e?.error || "Speech recognition error");
         };
         recognition.onend = () => {
-          // Clear safety timeout if set
           if (recognitionStopTimeoutRef.current !== null) {
             window.clearTimeout(recognitionStopTimeoutRef.current);
             recognitionStopTimeoutRef.current = null;
           }
-          // Stop parallel recorder
           if (parallelRecorderRef.current && parallelRecorderRef.current.state !== "inactive") {
             parallelRecorderRef.current.stop();
             parallelRecorderRef.current.stream.getTracks().forEach((t) => t.stop());
           }
-          // Finalize transcript and notify
-          const text = transcriptRef.current.trim();
+          const text = (previewTranscript || transcriptRef.current).trim();
           setPreviewTranscript(text);
           if (state !== "idle") {
-            onTranscribed({ transcript: text, audioUrl });
+            if (text.length === 0) {
+              setError("No speech detected. Please try again.");
+            } else {
+              onTranscribed({ transcript: text, audioUrl });
+            }
           }
           setState("idle");
         };
@@ -180,7 +181,11 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
           const j: { transcript?: string } = await res.json();
           const text = (j.transcript || "").trim();
           setPreviewTranscript(text);
-          onTranscribed({ transcript: text, audioUrl: url });
+          if (text.length === 0) {
+            setError("No speech detected. Please try again.");
+          } else {
+            onTranscribed({ transcript: text, audioUrl: url });
+          }
         } catch (e: unknown) {
           const message = e instanceof Error ? e.message : "Transcription failed";
           setError(message);
@@ -195,7 +200,7 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
       const message = e instanceof Error ? e.message : "Microphone access failed";
       setError(message);
     }
-  }, [onTranscribed, usingBrowserASR, state, audioUrl]);
+  }, [onTranscribed, usingBrowserASR, state, audioUrl, previewTranscript]);
 
   const stopRecording = useCallback(() => {
     setStoppedAt(elapsed);
@@ -203,17 +208,19 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
       try {
         setState("processing");
         recognitionRef.current.stop();
-        // Safety: if onend doesn't fire, finalize after 1.5s
         recognitionStopTimeoutRef.current = window.setTimeout(() => {
           if (state !== "idle") {
-            // Stop parallel recorder if still running
             if (parallelRecorderRef.current && parallelRecorderRef.current.state !== "inactive") {
               parallelRecorderRef.current.stop();
               parallelRecorderRef.current.stream.getTracks().forEach((t) => t.stop());
             }
-            const text = transcriptRef.current.trim();
+            const text = (previewTranscript || transcriptRef.current).trim();
             setPreviewTranscript(text);
-            onTranscribed({ transcript: text, audioUrl });
+            if (text.length === 0) {
+              setError("No speech detected. Please try again.");
+            } else {
+              onTranscribed({ transcript: text, audioUrl });
+            }
             setState("idle");
           }
         }, 1500);
@@ -227,7 +234,7 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
       mr.stop();
       mr.stream.getTracks().forEach((t) => t.stop());
     }
-  }, [usingBrowserASR, elapsed, state, audioUrl, onTranscribed]);
+  }, [usingBrowserASR, elapsed, state, audioUrl, onTranscribed, previewTranscript]);
 
   const canRecord = useMemo(() => state === "idle", [state]);
 
@@ -273,7 +280,7 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
       {audioUrl && (
         <div>
           <div className="text-sm font-medium">Replay</div>
-          <audio className="w-full" controls src={audioUrl} />
+        	<audio className="w-full" controls src={audioUrl} />
         </div>
       )}
       {!usingBrowserASR && (
