@@ -1,0 +1,12 @@
+[
+  { "id": "q1", "question": "Tell me about yourself and why you want to pursue medicine." },
+  { "id": "q2", "question": "Why this medical school specifically?" },
+  { "id": "q3", "question": "Describe a time you faced an ethical dilemma and how you handled it." },
+  { "id": "q4", "question": "What is your biggest weakness and how are you addressing it?" },
+  { "id": "q5", "question": "Tell me about a time you worked on a team and faced conflict." },
+  { "id": "q6", "question": "How do you handle stress and maintain work–life balance?" },
+  { "id": "q7", "question": "Describe a meaningful clinical or volunteer experience and what you learned." },
+  { "id": "q8", "question": "How would you handle a patient who refuses a recommended treatment?" },
+  { "id": "q9", "question": "What do you think is the most pressing issue in healthcare today?" },
+  { "id": "q10", "question": "Where do you see yourself in 10 years as a physician?" }
+]
