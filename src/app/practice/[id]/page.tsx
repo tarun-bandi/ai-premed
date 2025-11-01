@@ -2,8 +2,9 @@ import { getQuestionById } from "@/lib/questions";
 import PracticeClient from "@/components/PracticeClient";
 import Link from "next/link";
 
-export default function PracticePage({ params }: { params: { id: string } }) {
-  const q = getQuestionById(params.id);
+export default async function PracticePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const q = getQuestionById(id);
   if (!q) {
     return (
       <div className="max-w-3xl mx-auto p-6 sm:p-10">
