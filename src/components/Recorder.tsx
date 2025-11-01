@@ -33,8 +33,10 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
   const transcriptRef = useRef<string>("");
   const [state, setState] = useState<RecorderState>("idle");
   const [elapsed, setElapsed] = useState(0);
+  const [stoppedAt, setStoppedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [usingBrowserASR, setUsingBrowserASR] = useState<boolean>(false);
+  const [previewTranscript, setPreviewTranscript] = useState<string>("");
 
   useEffect(() => {
     let timer: number | null = null;
@@ -56,7 +58,9 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
   const startRecording = useCallback(async () => {
     setError(null);
     setElapsed(0);
+    setStoppedAt(null);
     transcriptRef.current = "";
+    setPreviewTranscript("");
 
     const win = typeof window !== "undefined" ? (window as unknown as { SpeechRecognition?: new () => SpeechRecognitionLike; webkitSpeechRecognition?: new () => SpeechRecognitionLike }) : undefined;
     const SpeechRecognitionCtor = win?.SpeechRecognition || win?.webkitSpeechRecognition || null;
@@ -68,25 +72,29 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
         recognition.interimResults = true;
         recognition.continuous = true;
         recognition.onresult = (event: SpeechRecognitionEventLike) => {
-          let finalTranscript = "";
+          let interimSnippet = "";
           for (let i = event.resultIndex; i < event.results.length; i++) {
             const res = event.results[i];
+            const text = res[0].transcript;
             if (res.isFinal) {
-              finalTranscript += res[0].transcript + " ";
+              transcriptRef.current = (transcriptRef.current + " " + text).trim();
+            } else {
+              interimSnippet += text + " ";
             }
           }
-          if (finalTranscript) {
-            transcriptRef.current = (transcriptRef.current + " " + finalTranscript).trim();
-          }
+          const combined = (transcriptRef.current + " " + interimSnippet).trim();
+          setPreviewTranscript(combined);
         };
         recognition.onerror = (e: { error?: string }) => {
           setError(e?.error || "Speech recognition error");
         };
         recognition.onend = () => {
-          if (usingBrowserASR && state !== "idle") {
+          if (usingBrowserASR) {
             const text = transcriptRef.current.trim();
-            setState("processing");
-            onTranscribed({ transcript: text });
+            setPreviewTranscript(text);
+            if (state !== "idle") {
+              onTranscribed({ transcript: text });
+            }
             setState("idle");
           }
         };
@@ -131,7 +139,9 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
             throw new Error(j.error || `Transcription error (${res.status})`);
           }
           const j: { transcript?: string } = await res.json();
-          onTranscribed({ transcript: j.transcript || "", audioUrl });
+          const text = (j.transcript || "").trim();
+          setPreviewTranscript(text);
+          onTranscribed({ transcript: text, audioUrl });
         } catch (e: unknown) {
           const message = e instanceof Error ? e.message : "Transcription failed";
           setError(message);
@@ -149,8 +159,10 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
   }, [onTranscribed, usingBrowserASR, state]);
 
   const stopRecording = useCallback(() => {
+    setStoppedAt(elapsed);
     if (usingBrowserASR && recognitionRef.current) {
       try {
+        setState("processing");
         recognitionRef.current.stop();
       } catch {
         // ignore
@@ -162,7 +174,7 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
       mr.stop();
       mr.stream.getTracks().forEach((t) => t.stop());
     }
-  }, [usingBrowserASR]);
+  }, [usingBrowserASR, elapsed]);
 
   const canRecord = useMemo(() => state === "idle", [state]);
 
@@ -176,6 +188,9 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
         <div className="text-sm opacity-70">Timer</div>
         <div className="text-lg font-semibold">{elapsed}s</div>
       </div>
+      {stoppedAt != null && state !== "recording" && (
+        <div className="text-xs opacity-70">Stopped at {stoppedAt}s</div>
+      )}
       <div className="flex gap-3">
         <button
           className="px-4 py-2 rounded-md bg-foreground text-background disabled:opacity-50"
@@ -196,6 +211,12 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
         <div className="text-xs opacity-70">Speak up to {MAX_SECONDS}s. Auto-stops at limit.</div>
       )}
       {error && <div className="text-sm text-red-600 dark:text-red-400">{error}</div>}
+      {previewTranscript && (
+        <div>
+          <div className="text-sm font-medium">Transcript</div>
+          <div className="text-sm opacity-80 whitespace-pre-wrap">{previewTranscript}</div>
+        </div>
+      )}
       {!usingBrowserASR && (
         <div className="text-xs opacity-70">Tip: For free transcription, use Chrome where speech recognition is supported.</div>
       )}

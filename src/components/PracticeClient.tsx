@@ -48,7 +48,17 @@ export default function PracticeClient({ question }: { question: string }) {
         <Recorder onTranscribed={handleTranscribed} />
       )}
 
-      {grading && <div className="text-sm opacity-70">Grading your response…</div>}
+      {grading && (
+        <div className="space-y-3">
+          <div className="text-sm opacity-70">Grading your response…</div>
+          {transcript && (
+            <div>
+              <div className="text-sm font-medium">Transcript</div>
+              <div className="text-sm opacity-80 whitespace-pre-wrap">{transcript}</div>
+            </div>
+          )}
+        </div>
+      )}
 
       {error && <div className="text-sm text-red-600 dark:text-red-400">{error}</div>}
 
