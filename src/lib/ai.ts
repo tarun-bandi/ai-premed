@@ -16,6 +16,8 @@ export function getGemini(): GoogleGenerativeAI {
 	if (!geminiClient) {
 		const key = process.env.GOOGLE_API_KEY;
 		if (!key) throw new Error("GOOGLE_API_KEY is missing");
+		// Initialize Google Generative AI client
+		// The SDK will use v1 API by default for gemini-1.5-flash
 		geminiClient = new GoogleGenerativeAI(key);
 	}
 	return geminiClient;
@@ -23,4 +25,5 @@ export function getGemini(): GoogleGenerativeAI {
 
 export const ASR_MODEL = "whisper-1";
 export const GRADE_MODEL = "gpt-4o-mini"; // kept for reference if switching back
-export const GEMINI_MODEL = "gemini-pro";
+// Use gemini-1.5-flash with v1 API
+export const GEMINI_MODEL = "gemini-1.5-flash";
