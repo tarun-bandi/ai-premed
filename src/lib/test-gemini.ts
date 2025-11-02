@@ -15,10 +15,13 @@ async function testGemini() {
       throw new Error("GOOGLE_API_KEY environment variable is not set");
     }
 
-    console.log("Initializing Google Generative AI client...");
+    console.log("Initializing Google Generative AI client with v1 API endpoint...");
     
-    // Initialize the client
-    const genAI = new GoogleGenerativeAI(apiKey);
+    // Initialize the client with explicit v1 API endpoint
+    // Using type assertion since SDK supports baseUrl but types may not include it
+    const genAI = new (GoogleGenerativeAI as any)(apiKey, {
+      baseUrl: "https://generativelanguage.googleapis.com/v1",
+    });
 
     console.log("Getting model: gemini-1.5-flash...");
     
