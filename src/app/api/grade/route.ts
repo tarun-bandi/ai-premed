@@ -62,11 +62,16 @@ export async function POST(req: Request) {
 		}
 
 		const gemini = getGemini();
-		const model = gemini.getGenerativeModel({ model: GEMINI_MODEL });
+		const model = gemini.getGenerativeModel({ 
+			model: GEMINI_MODEL,
+			generationConfig: {
+				responseMimeType: "application/json",
+			},
+		});
 
 		const prompt = `${SYSTEM_PROMPT}\n\nQuestion: "${question}"\n\nTranscript:\n"${transcript}"`;
 
-		const result = await model.generateContent({ contents: [{ role: "user", parts: [{ text: prompt }] }] });
+		const result = await model.generateContent(prompt);
 		const text = result.response.text() || "{}";
 
 		const data: GradeResult = safeParseGradeResult(text);
