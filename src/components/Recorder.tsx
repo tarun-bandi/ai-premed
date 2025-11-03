@@ -128,14 +128,13 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
           }
           const text = (previewTranscript || transcriptRef.current).trim();
           setPreviewTranscript(text);
-          if (state !== "idle") {
-            if (text.length === 0) {
-              setError("No speech detected. Please try again.");
-            } else {
-              onTranscribed({ transcript: text, audioUrl });
-            }
+          if (text.length === 0) {
+            setError("No speech detected. Please try again.");
+            setState("idle");
+          } else {
+            onTranscribed({ transcript: text, audioUrl });
+            setState("idle");
           }
-          setState("idle");
         };
         recognitionRef.current = recognition;
         setUsingBrowserASR(true);
@@ -209,18 +208,17 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
         setState("processing");
         recognitionRef.current.stop();
         recognitionStopTimeoutRef.current = window.setTimeout(() => {
-          if (state !== "idle") {
-            if (parallelRecorderRef.current && parallelRecorderRef.current.state !== "inactive") {
-              parallelRecorderRef.current.stop();
-              parallelRecorderRef.current.stream.getTracks().forEach((t) => t.stop());
-            }
-            const text = (previewTranscript || transcriptRef.current).trim();
-            setPreviewTranscript(text);
-            if (text.length === 0) {
-              setError("No speech detected. Please try again.");
-            } else {
-              onTranscribed({ transcript: text, audioUrl });
-            }
+          if (parallelRecorderRef.current && parallelRecorderRef.current.state !== "inactive") {
+            parallelRecorderRef.current.stop();
+            parallelRecorderRef.current.stream.getTracks().forEach((t) => t.stop());
+          }
+          const text = (previewTranscript || transcriptRef.current).trim();
+          setPreviewTranscript(text);
+          if (text.length === 0) {
+            setError("No speech detected. Please try again.");
+            setState("idle");
+          } else {
+            onTranscribed({ transcript: text, audioUrl });
             setState("idle");
           }
         }, 1500);
@@ -234,7 +232,7 @@ export default function Recorder({ onTranscribed }: { onTranscribed: (args: { tr
       mr.stop();
       mr.stream.getTracks().forEach((t) => t.stop());
     }
-  }, [usingBrowserASR, elapsed, state, audioUrl, onTranscribed, previewTranscript]);
+  }, [usingBrowserASR, elapsed, audioUrl, onTranscribed, previewTranscript]);
 
   const canRecord = useMemo(() => state === "idle", [state]);
 
