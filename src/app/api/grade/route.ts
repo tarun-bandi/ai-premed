@@ -94,8 +94,6 @@ export async function POST(req: Request) {
 		const gemini = getGemini();
 		const model = gemini.getGenerativeModel({ 
 			model: GEMINI_MODEL,
-		}, {
-			apiVersion: "v1",
 		});
 
 		const prompt = `${SYSTEM_PROMPT}\n\nQuestion: "${question}"\n\nTranscript:\n"${transcript}"`;
