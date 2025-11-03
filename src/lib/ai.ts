@@ -25,4 +25,4 @@ export function getGemini(): GoogleGenerativeAI {
 export const ASR_MODEL = "whisper-1";
 export const GRADE_MODEL = "gpt-4o-mini"; // kept for reference if switching back
 // Use gemini-1.5-flash with v1 API
-export const GEMINI_MODEL = "gemini-1.5-flash";
+export const GEMINI_MODEL = "gemini-flash-latest";
