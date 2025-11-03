@@ -16,11 +16,8 @@ export function getGemini(): GoogleGenerativeAI {
 	if (!geminiClient) {
 		const key = process.env.GOOGLE_API_KEY;
 		if (!key) throw new Error("GOOGLE_API_KEY is missing");
-		// Initialize Google Generative AI client with explicit v1 API endpoint
-		// Using type assertion since SDK supports baseUrl but types may not include it
-		geminiClient = new (GoogleGenerativeAI as any)(key, {
-			baseUrl: "https://generativelanguage.googleapis.com/v1",
-		}) as GoogleGenerativeAI;
+		// SDK v0.11.0+ automatically uses v1 endpoint for gemini-1.5-flash
+		geminiClient = new GoogleGenerativeAI(key);
 	}
 	return geminiClient;
 }
