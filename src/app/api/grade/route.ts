@@ -67,6 +67,8 @@ export async function POST(req: Request) {
 			generationConfig: {
 				responseMimeType: "application/json",
 			},
+		}, {
+			apiVersion: "v1",
 		});
 
 		const prompt = `${SYSTEM_PROMPT}\n\nQuestion: "${question}"\n\nTranscript:\n"${transcript}"`;

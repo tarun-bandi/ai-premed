@@ -11,6 +11,7 @@ type InputMode = "record" | "type";
 export default function PracticeClient({ question }: { question: string }) {
   const [mode, setMode] = useState<InputMode>("record");
   const [transcript, setTranscript] = useState<string | null>(null);
+  const [editableTranscript, setEditableTranscript] = useState<string>("");
   const [typedText, setTypedText] = useState<string>("");
   const [grading, setGrading] = useState(false);
   const [result, setResult] = useState<GradeResult | null>(null);
@@ -40,9 +41,20 @@ export default function PracticeClient({ question }: { question: string }) {
     }
   }, [question]);
 
-  const handleTranscribed = useCallback(async ({ transcript }: { transcript: string }) => {
-    await gradeResponse(transcript);
-  }, [gradeResponse]);
+  const handleTranscribed = useCallback(({ transcript: transcriptText }: { transcript: string; audioUrl?: string }) => {
+    // Set transcript for editing, don't auto-submit
+    setEditableTranscript(transcriptText);
+    setTranscript(transcriptText);
+  }, []);
+
+  const handleSubmitFromRecording = useCallback(() => {
+    const trimmed = editableTranscript.trim();
+    if (trimmed.length === 0) {
+      setError("Please enter your response before submitting.");
+      return;
+    }
+    gradeResponse(trimmed);
+  }, [editableTranscript, gradeResponse]);
 
   const handleSubmitTyped = useCallback(() => {
     const trimmed = typedText.trim();
@@ -55,10 +67,13 @@ export default function PracticeClient({ question }: { question: string }) {
 
   const reset = () => {
     setTranscript(null);
+    setEditableTranscript("");
     setResult(null);
     setError(null);
     setTypedText("");
   };
+
+  const hasRecordingTranscript = editableTranscript.length > 0;
 
   return (
     <div className="space-y-6">
@@ -66,7 +81,10 @@ export default function PracticeClient({ question }: { question: string }) {
         <div className="space-y-4">
           <div className="flex gap-2 border-b border-black/10 dark:border-white/15">
             <button
-              onClick={() => setMode("record")}
+              onClick={() => {
+                setMode("record");
+                setEditableTranscript("");
+              }}
               className={`px-4 py-2 text-sm font-medium transition-colors ${
                 mode === "record"
                   ? "border-b-2 border-foreground text-foreground"
@@ -76,7 +94,10 @@ export default function PracticeClient({ question }: { question: string }) {
               Record
             </button>
             <button
-              onClick={() => setMode("type")}
+              onClick={() => {
+                setMode("type");
+                setEditableTranscript("");
+              }}
               className={`px-4 py-2 text-sm font-medium transition-colors ${
                 mode === "type"
                   ? "border-b-2 border-foreground text-foreground"
@@ -88,7 +109,59 @@ export default function PracticeClient({ question }: { question: string }) {
           </div>
 
           {mode === "record" ? (
-            <Recorder onTranscribed={handleTranscribed} />
+            <>
+              {!hasRecordingTranscript ? (
+                <Recorder onTranscribed={handleTranscribed} />
+              ) : (
+                <div className="w-full rounded-lg border border-black/10 dark:border-white/15 p-4 space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label htmlFor="editable-transcript" className="block text-sm font-medium">
+                        Your Response (Edit if needed)
+                      </label>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(editableTranscript);
+                        }}
+                        className="text-xs px-2 py-1 rounded border border-black/10 dark:border-white/15 hover:bg-black/[.03] dark:hover:bg-white/[.03]"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                    <textarea
+                      id="editable-transcript"
+                      value={editableTranscript}
+                      onChange={(e) => setEditableTranscript(e.target.value)}
+                      placeholder="Your transcribed response will appear here..."
+                      className="w-full min-h-[200px] p-3 rounded-md border border-black/10 dark:border-white/15 bg-background text-foreground resize-y"
+                      disabled={grading}
+                    />
+                    <div className="text-xs opacity-70 mt-1">
+                      {editableTranscript.length} characters
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        setEditableTranscript("");
+                        setTranscript(null);
+                      }}
+                      className="px-4 py-2 rounded-md border border-black/10 dark:border-white/15"
+                      disabled={grading}
+                    >
+                      Record Again
+                    </button>
+                    <button
+                      onClick={handleSubmitFromRecording}
+                      disabled={grading || editableTranscript.trim().length === 0}
+                      className="px-4 py-2 rounded-md bg-foreground text-background disabled:opacity-50"
+                    >
+                      {grading ? "Grading..." : "Submit for Grading"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
             <div className="w-full rounded-lg border border-black/10 dark:border-white/15 p-4 space-y-4">
               <div>
