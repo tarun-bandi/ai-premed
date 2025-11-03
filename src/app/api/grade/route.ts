@@ -94,9 +94,6 @@ export async function POST(req: Request) {
 		const gemini = getGemini();
 		const model = gemini.getGenerativeModel({ 
 			model: GEMINI_MODEL,
-			generationConfig: {
-				responseMimeType: "application/json",
-			},
 		}, {
 			apiVersion: "v1",
 		});
