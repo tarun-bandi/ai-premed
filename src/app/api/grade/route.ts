@@ -7,16 +7,45 @@ export const runtime = "nodejs";
 const WINDOW_MS = 5 * 60 * 1000; // 5 min
 const LIMIT = 10; // per IP per window
 
-const SYSTEM_PROMPT = `You are an admissions interviewer for med school. Grade the candidate’s answer.
-Return concise JSON only with keys: scores { contentRelevance, structureClarity, empathyProfessionalism, concisionTiming }, overall (average, .5 allowed), strength (short sentence), improvements (3 short items). Be strict but fair; ignore ASR disfluencies unless excessive.`;
+const SYSTEM_PROMPT = `You are a medical school admissions interviewer using a standardized rubric.
+
+Evaluate the candidate's answer and return ONLY valid JSON:
+
+{
+  "scores": {
+    "introduction": number (1–4),
+    "mentalPreparation": number (1–4),
+    "personality": number (1–4),
+    "ethics": number (1–4),
+    "schoolSpecificInterest": number (1–4)
+  },
+  "overall": number (average of scores, may be .5),
+  "strength": "short sentence summarizing the candidate's strongest quality",
+  "improvements": ["3 short, specific suggestions for improvement"]
+}
+
+Grading reference (1=Poor, 2=Fair, 3=Good, 4=Excellent):
+
+Introduction: punctual, professional appearance, friendly demeanor, confident introduction.  
+
+Mental Preparation: answers promptly, confidently, thoroughly yet concisely, with enthusiasm and thoughtfulness.  
+
+Personality: likable, memorable, genuine enthusiasm for medicine.  
+
+Ethics: thoughtful reasoning, credible and informed opinions, awareness of current issues.  
+
+School-Specific Interest: mentions reasons for choosing this school, demonstrates prior research, curiosity to learn more.
+
+Be strict but fair. Ignore minor ASR disfluencies unless excessive. No commentary outside JSON.`;
 
 function defaultGradeResult(): GradeResult {
 	return {
 		scores: {
-			contentRelevance: 0,
-			structureClarity: 0,
-			empathyProfessionalism: 0,
-			concisionTiming: 0,
+			introduction: 0,
+			mentalPreparation: 0,
+			personality: 0,
+			ethics: 0,
+			schoolSpecificInterest: 0,
 		},
 		overall: 0,
 		strength: "",
@@ -31,10 +60,11 @@ function safeParseGradeResult(text: string): GradeResult {
 		const scores = obj.scores ?? ({} as GradeResult["scores"]);
 		return {
 			scores: {
-				contentRelevance: Number(scores.contentRelevance ?? 0),
-				structureClarity: Number(scores.structureClarity ?? 0),
-				empathyProfessionalism: Number(scores.empathyProfessionalism ?? 0),
-				concisionTiming: Number(scores.concisionTiming ?? 0),
+				introduction: Number(scores.introduction ?? 0),
+				mentalPreparation: Number(scores.mentalPreparation ?? 0),
+				personality: Number(scores.personality ?? 0),
+				ethics: Number(scores.ethics ?? 0),
+				schoolSpecificInterest: Number(scores.schoolSpecificInterest ?? 0),
 			},
 			overall: Number(obj.overall ?? 0),
 			strength: String(obj.strength ?? ""),

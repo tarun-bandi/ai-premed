@@ -1,8 +1,9 @@
 type Scores = {
-  contentRelevance?: number;
-  structureClarity?: number;
-  empathyProfessionalism?: number;
-  concisionTiming?: number;
+  introduction?: number;
+  mentalPreparation?: number;
+  personality?: number;
+  ethics?: number;
+  schoolSpecificInterest?: number;
 };
 
 export default function ScorePanel({
@@ -24,14 +25,15 @@ export default function ScorePanel({
     <div className="w-full rounded-lg border border-black/10 dark:border-white/15 p-4 space-y-4">
       <div className="flex items-center justify-between">
         <div className="text-sm opacity-70">Overall</div>
-        <div className="text-xl font-semibold">{overall.toFixed(1)} / 5</div>
+        <div className="text-xl font-semibold">{overall.toFixed(1)} / 4</div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-        <ScoreRow label="Content relevance" value={scores?.contentRelevance} />
-        <ScoreRow label="Structure & clarity" value={scores?.structureClarity} />
-        <ScoreRow label="Empathy & professionalism" value={scores?.empathyProfessionalism} />
-        <ScoreRow label="Concision & timing" value={scores?.concisionTiming} />
+        <ScoreRow label="Introduction" value={scores?.introduction} />
+        <ScoreRow label="Mental Preparation" value={scores?.mentalPreparation} />
+        <ScoreRow label="Personality" value={scores?.personality} />
+        <ScoreRow label="Ethics" value={scores?.ethics} />
+        <ScoreRow label="School-Specific Interest" value={scores?.schoolSpecificInterest} />
       </div>
 
       {strength ? (

@@ -1,8 +1,9 @@
 export interface GradeScores {
-	contentRelevance: number;
-	structureClarity: number;
-	empathyProfessionalism: number;
-	concisionTiming: number;
+	introduction: number;
+	mentalPreparation: number;
+	personality: number;
+	ethics: number;
+	schoolSpecificInterest: number;
 }
 
 export interface GradeResult {
