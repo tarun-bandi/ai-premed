@@ -36,6 +36,8 @@ Ethics: thoughtful reasoning, credible and informed opinions, awareness of curre
 
 School-Specific Interest: mentions reasons for choosing this school, demonstrates prior research, curiosity to learn more.
 
+IMPORTANT: You MUST include "strength" (a meaningful sentence) and "improvements" (an array of exactly 3 actionable suggestions) in your response. These are required fields.
+
 Be strict but fair. Ignore minor ASR disfluencies unless excessive. No commentary outside JSON.`;
 
 function defaultGradeResult(): GradeResult {
@@ -58,6 +60,27 @@ function safeParseGradeResult(text: string): GradeResult {
 		const obj = JSON.parse(text) as Partial<GradeResult>;
 		if (!obj || typeof obj !== "object") return defaultGradeResult();
 		const scores = obj.scores ?? ({} as GradeResult["scores"]);
+		
+		// Ensure improvements is an array with at least some items
+		let improvements: string[] = [];
+		if (Array.isArray(obj.improvements)) {
+			improvements = obj.improvements.map(String).filter(s => s.trim().length > 0);
+		}
+		// If empty, provide fallback
+		if (improvements.length === 0) {
+			improvements = [
+				"Review the question and ensure your answer directly addresses all aspects",
+				"Practice structuring your response with a clear introduction, body, and conclusion",
+				"Add specific examples or personal experiences to strengthen your points"
+			];
+		}
+		
+		// Ensure strength is meaningful
+		let strength = String(obj.strength ?? "").trim();
+		if (strength.length === 0) {
+			strength = "Your response demonstrates effort and engagement with the question.";
+		}
+		
 		return {
 			scores: {
 				introduction: Number(scores.introduction ?? 0),
@@ -67,8 +90,8 @@ function safeParseGradeResult(text: string): GradeResult {
 				schoolSpecificInterest: Number(scores.schoolSpecificInterest ?? 0),
 			},
 			overall: Number(obj.overall ?? 0),
-			strength: String(obj.strength ?? ""),
-			improvements: Array.isArray(obj.improvements) ? obj.improvements.map(String) : [],
+			strength,
+			improvements,
 		};
 	} catch {
 		return defaultGradeResult();

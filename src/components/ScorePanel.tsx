@@ -24,7 +24,7 @@ export default function ScorePanel({
   return (
     <div className="w-full rounded-lg border border-black/10 dark:border-white/15 p-4 space-y-4">
       <div className="flex items-center justify-between">
-        <div className="text-sm opacity-70">Overall</div>
+        <div className="text-sm opacity-70">Overall Score</div>
         <div className="text-xl font-semibold">{overall.toFixed(1)} / 4</div>
       </div>
 
@@ -36,30 +36,30 @@ export default function ScorePanel({
         <ScoreRow label="School-Specific Interest" value={scores?.schoolSpecificInterest} />
       </div>
 
-      {strength ? (
-        <div>
-          <div className="text-sm font-medium">Strength</div>
+      {strength && strength.trim().length > 0 && (
+        <div className="border-t border-black/10 dark:border-white/15 pt-4">
+          <div className="text-sm font-medium mb-2">💪 Strength</div>
           <div className="text-sm opacity-80">{strength}</div>
         </div>
-      ) : null}
+      )}
 
-      {improvements && improvements.length ? (
-        <div>
-          <div className="text-sm font-medium">Improvements</div>
-          <ul className="list-disc pl-5 text-sm opacity-80">
+      {improvements && improvements.length > 0 && (
+        <div className="border-t border-black/10 dark:border-white/15 pt-4">
+          <div className="text-sm font-medium mb-2">📈 Areas for Improvement</div>
+          <ul className="list-disc pl-5 text-sm opacity-80 space-y-1">
             {improvements.map((tip, i) => (
               <li key={i}>{tip}</li>
             ))}
           </ul>
         </div>
-      ) : null}
+      )}
 
-      {transcript ? (
-        <div>
-          <div className="text-sm font-medium">Transcript</div>
+      {transcript && (
+        <div className="border-t border-black/10 dark:border-white/15 pt-4">
+          <div className="text-sm font-medium mb-2">📝 Your Response</div>
           <div className="text-sm opacity-80 whitespace-pre-wrap">{transcript}</div>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }
