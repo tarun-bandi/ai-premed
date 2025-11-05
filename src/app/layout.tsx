@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "AI Interview Practice",
-  description: "AI Interview Practice - Created by Tarun Bandi",
+  description: "AI Interview Practice",
 };
 
 export default function RootLayout({
